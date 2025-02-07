@@ -1,0 +1,1 @@
+player_data_auction = {'остатки_приборов_шепота': {'total_price': 877800, 'total_quantity': 7, 'middle_price_buy': 87304}}
