@@ -1,1 +1,1 @@
-player_data_sell = {'гамма': {'total_price': 912000, 'total_quantity': 8}, 'альфа': {'total_price': 798000, 'total_quantity': 6}, 'остатки_приборов_шепота': {'total_price': 384750, 'total_quantity': 3}}
+player_data_sell = {}
