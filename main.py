@@ -107,7 +107,10 @@ class Main:
                     if product_info == False:
                         raise ValueError
                 except:
-                    break
+                    if "-" not in product_price or "/" not in product_price:
+                        pass
+                    else:
+                        break
                 else:
                     self.add_product_to_player_data(
                         product_name=product_info[0],
@@ -120,7 +123,6 @@ class Main:
                     if savingStatus == True:
                         print("| Данные успешно сохранены.")
                         return False
-                print("1!")
                 product_quantity = 0
                 product_price = int(product_price)
                 if product_price == 0:
@@ -209,46 +211,52 @@ class Main:
             product_name = prompt("Введите название товара: ", completer=completer)
             if product_name == "exit":
                 break
-            product_price = input(
-                "Введите \033[4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
-            ).replace(" ", "")
-            try:
-                if "-" in product_price:
-                    product_info = self.buy_few_products(
-                        product_name, product_price.split("-")
+            while True:
+                product_price = input(
+                    "Введите \033[4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
+                ).replace(" ", "")
+                try:
+                    if "-" in product_price:
+                        product_info = self.buy_few_products(
+                            product_name, product_price.split("-")
+                        )
+                    if "/" in product_price:
+                        product_info = self.buy_few_products(
+                            product_name, product_price.split("/")
+                        )
+                    if product_info == False:
+                        raise ValueError
+                except:
+                    if "-" not in product_price or "/" not in product_price:
+                        pass
+                    else:
+                        break
+                else:
+                    savingStatus = self.add_product_to_player_data_auction(
+                        product_name=product_info[0],
+                        product_price=(product_info[1] * product_info[2]),
+                        product_quantity=product_info[2],
                     )
-                if "/" in product_price:
-                    product_info = self.buy_few_products(
-                        product_name, product_price.split("/")
-                    )
-            except:
-                pass
-            else:
-                savingStatus = self.add_product_to_player_data_auction(
-                    product_name=product_info[0],
-                    product_price=(product_info[1] * product_info[2]),
-                    product_quantity=product_info[2],
+                    if savingStatus == True:
+                        print("|- Данные успешно сохранены.")
+                        return True
+                product_price = int(product_price)
+                if product_price == 0:
+                    break
+                if product_price < 1000:
+                    print("Минимальная цена товара - 1000р.")
+                    continue
+                product_quantity = self.input_int("Введите количество товара: ")
+                if product_quantity > 99:
+                    print("Максимальное вводимое количество товара - 99.")
+                    continue
+                if product_quantity == 0:
+                    break
+                status = self.add_product_to_player_data_auction(
+                    product_name, (product_price * product_quantity), product_quantity
                 )
-                if savingStatus == True:
-                    print("|- Данные успешно сохранены.")
+                if status == True:
                     return True
-            product_price = int(product_price)
-            if product_price == 0:
-                break
-            if product_price < 1000:
-                print("Минимальная цена товара - 1000р.")
-                continue
-            product_quantity = self.input_int("Введите количество товара: ")
-            if product_quantity > 99:
-                print("Максимальное вводимое количество товара - 99.")
-                continue
-            if product_quantity == 0:
-                break
-            status = self.add_product_to_player_data_auction(
-                product_name, (product_price * product_quantity), product_quantity
-            )
-            if status == True:
-                return True
 
     def remove_product_auction(self) -> dict:
         """Удаляем товар из статистики игрока о купленных товарах."""
@@ -448,7 +456,7 @@ class Main:
         print(f"\033[33m- Товар который был уже продан -\033[0m")
         for key in player_data_sell.keys():
             print()
-            print(f"Товар: {key}")
+            print(f"Товар: {key} - {player_data_sell[key]['total_quantity']}шт.")
             try:
                 middle_price = player_data_sell[key]["middle_price_buy"]
             except:
@@ -457,9 +465,14 @@ class Main:
                 print(
                     f"Цена покупки: {middle_price * player_data_sell[key]["total_quantity"]:,}р. ({middle_price:,}р. за штуку.)"
                 )
-            print(f"Количество: x{player_data_sell[key]['total_quantity']}")
             print(
                 f"Продажа: {player_data_sell[key]['total_price']:,} - {player_data_sell[key]['total_price'] // player_data_sell[key]["total_quantity"]:,}р. за штуку."
+            )
+            print(
+                f"Выгода: {player_data_sell[key]['total_price'] - middle_price * player_data_sell[key]['total_quantity']:,}р."
+            )
+            print(
+                f"Окупаемость: {round(player_data_sell[key]['total_price'] / ((middle_price * player_data_sell[key]['total_quantity']) / 100), 1)}%"
             )
         print(
             f"\nВсего денег потрачено: {sum([value["total_price"] for value in player_data.values()]):,}р."
