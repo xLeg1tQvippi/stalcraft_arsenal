@@ -4,11 +4,13 @@ from player_data_sell import player_data_sell
 from player_data_auction import player_data_auction
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
+import colorama
 
 
 class Main:
     def __init__(self):
         self.start()
+        colorama.init()
 
     def start(self):
         while True:
@@ -55,6 +57,18 @@ class Main:
             if returningStatus == True:
                 print("| Данные о покупке сохранены.")
 
+    def buy_few_products(self, product_name: str, vault_price_amount: list):
+        full_product_price: int = int(vault_price_amount[0])
+        full_product_quantity: int = int(vault_price_amount[1])
+
+        product_price = full_product_price // full_product_quantity  # Цена за штуку.
+
+        arsenal_price = arsenal_prices.get(product_name)
+        total_arsenal = arsenal_price * full_product_quantity
+
+        return [product_name, product_price, full_product_quantity, total_arsenal]
+        """ Если товар был куплен в нескольких количествах. """
+
     def buy_product(self):
         # Просим пользователя ввести название товара
         # И цена товара по которой он скупает
@@ -71,7 +85,36 @@ class Main:
                 print("Такого товара нет в списке.")
                 continue
             while True:
-                product_price = self.input_int("Введите \033[1;4mцену товара\033[0m: ")
+                product_price = input(
+                    "Введите \033[4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
+                ).replace(" ", "")
+                try:
+                    if "-" in product_price:
+                        product_info = self.buy_few_products(
+                            product_name, product_price.split("-")
+                        )
+                    if "/" in product_price:
+                        product_info = self.buy_few_products(
+                            product_name, product_price.split("/")
+                        )
+                except:
+                    pass
+                else:
+                    self.add_product_to_player_data(
+                        product_name=product_info[0],
+                        product_price=(product_info[1] * product_info[2]),
+                        product_quantity=product_info[2],
+                        total_arsenal=product_info[3],
+                    )
+
+                    savingStatus = self.save_player_data()
+                    if savingStatus == True:
+                        print(
+                            f"\nТовар: {product_name}\nКоличество: {product_info[2]}\nЦена за штуку: {product_info[1]:,}\n"
+                        )
+                        print("| Данные успешно сохранены.")
+                        return False
+                product_price = int(product_price)
                 if product_price == 0:
                     break
                 if product_price < 1000:
@@ -126,8 +169,6 @@ class Main:
             player_data[product_name]["total_quantity"] += product_quantity
             player_data[product_name]["total_arsenal"] += total_arsenal
 
-        return player_data
-
     def save_player_data(self) -> bool:
         """Сохраняем данные игрока."""
         with open("player_data_buy.py", "w", encoding="utf-8") as file:
@@ -160,7 +201,30 @@ class Main:
             product_name = prompt("Введите название товара: ", completer=completer)
             if product_name == "exit":
                 break
-            product_price = self.input_int("Введите цену товара: ")
+            product_price = input(
+                "Введите \033[4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
+            ).replace(" ", "")
+            try:
+                if "-" in product_price:
+                    product_info = self.buy_few_products(
+                        product_name, product_price.split("-")
+                    )
+                if "/" in product_price:
+                    product_info = self.buy_few_products(
+                        product_name, product_price.split("/")
+                    )
+            except:
+                pass
+            else:
+                savingStatus = self.add_product_to_player_data_auction(
+                    product_name=product_info[0],
+                    product_price=(product_info[1] * product_info[2]),
+                    product_quantity=product_info[2],
+                )
+                if savingStatus == True:
+                    print("|- Данные успешно сохранены.")
+                    return True
+            product_price = int(product_price)
             if product_price == 0:
                 break
             if product_price < 1000:
@@ -190,7 +254,7 @@ class Main:
 
             if product_name == "exit":
                 break
-            if product_name not in player_data:
+            if product_name not in player_data_auction:
                 print("Такого товара нет в списке.")
                 continue
 
@@ -201,10 +265,13 @@ class Main:
                 break
             product_quantity = int(product_quantity)
             middle_price_buy = player_data_auction[product_name]["middle_price_buy"]
+
+            # Цена товара за штуку:
             middle_product_price = (
                 player_data_auction[product_name]["total_price"]
                 // player_data_auction[product_name]["total_quantity"]
             )
+
             if player_data_auction[product_name]["total_quantity"] > product_quantity:
                 # В случае если количество товара больше чем ввел пользователь.
                 player_data_auction[product_name]["total_quantity"] -= product_quantity
@@ -374,10 +441,6 @@ class Main:
         for key in player_data_sell.keys():
             print()
             print(f"Товар: {key}")
-            print(
-                f"Продажа: {player_data_sell[key]['total_price']:,} - {player_data_sell[key]['total_price'] // player_data_sell[key]["total_quantity"]:,}р. за штуку."
-            )
-            print(f"Количество: x{player_data_sell[key]['total_quantity']}")
             try:
                 middle_price = player_data_sell[key]["middle_price_buy"]
             except:
@@ -386,7 +449,10 @@ class Main:
                 print(
                     f"Цена покупки: {middle_price * player_data_sell[key]["total_quantity"]:,}р. ({middle_price:,}р. за штуку.)"
                 )
-
+            print(f"Количество: x{player_data_sell[key]['total_quantity']}")
+            print(
+                f"Продажа: {player_data_sell[key]['total_price']:,} - {player_data_sell[key]['total_price'] // player_data_sell[key]["total_quantity"]:,}р. за штуку."
+            )
         print(
             f"\nВсего денег потрачено: {sum([value["total_price"] for value in player_data.values()]):,}р."
         )
@@ -398,20 +464,36 @@ class Main:
 
     def count_price_to_arsenal(self):
         arsenal_to_upgrade = 10000
-        print(
-            f"Данная функция поможет вам рассчитать определенный товар для получения {arsenal_to_upgrade} очков арсенала.\n"
-        )
-        completer = WordCompleter(arsenal_prices.keys(), ignore_case=True)
-        product_name = prompt("Введите название товара: ", completer=completer)
-        product_price = self.input_int("Введите цену товара: ")
+        while True:
+            choice = self.input_int(
+                "Меню:\n1 - Рассчитать товар до 10.000 за цену\n2 - Рассчитать определенное количество товара для валюты арсена.\n0 - Выйти\n>>>"
+            )
+            if choice == 1:
+                print(
+                    f"Данная функция поможет вам рассчитать определенный товар для получения {arsenal_to_upgrade} очков арсенала.\n"
+                )
+                completer = WordCompleter(arsenal_prices.keys(), ignore_case=True)
+                product_name = prompt("Введите название товара: ", completer=completer)
+                product_price = self.input_int("Введите цену товара: ")
 
-        product_arsenal_price = arsenal_prices.get(product_name)
-        product_quantity = arsenal_to_upgrade / product_arsenal_price
-        product_total_price = product_quantity * product_price
+                product_arsenal_price = arsenal_prices.get(product_name)
+                product_quantity = arsenal_to_upgrade / product_arsenal_price
+                product_total_price = product_quantity * product_price
 
-        print(
-            f"Для того чтобы получить 10.000 арсенала, вам нужно: {round(product_total_price, 2):,}р.\nКоличество товара: х{round(product_quantity, 2)}"
-        )
+                print(
+                    f"Для того чтобы получить 10.000 арсенала, вам нужно: {round(product_total_price, 2):,}р.\nКоличество товара: х{round(product_quantity, 2)}"
+                )
+            if choice == 2:
+                completer = WordCompleter(arsenal_prices.keys(), ignore_case=True)
+                product_name = prompt("Введите название товара: ", completer=completer)
+                product_quantity_to_count = self.input_int(
+                    "Введите количество товара для рассчета: "
+                )
+                print(
+                    f"{product_quantity_to_count * arsenal_prices[product_name]} валюты, за x{product_quantity_to_count}шт."
+                )
+            if choice == 0:
+                break
 
 
 if __name__ == "__main__":
