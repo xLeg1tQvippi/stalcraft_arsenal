@@ -107,7 +107,6 @@ class Main:
                     if product_info == False:
                         raise ValueError
                 except:
-                    print("breaking!")
                     break
                 else:
                     self.add_product_to_player_data(
