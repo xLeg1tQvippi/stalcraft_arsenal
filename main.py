@@ -65,8 +65,15 @@ class Main:
 
         arsenal_price = arsenal_prices.get(product_name)
         total_arsenal = arsenal_price * full_product_quantity
-
-        return [product_name, product_price, full_product_quantity, total_arsenal]
+        print(
+            f"\nТовар: {product_name}\nКоличество: {full_product_quantity}шт.\nЦена за штуку: {product_price:,}\n"
+        )
+        would_buy = self.input_int("Покупаем?\n1 - Да\n2 - Нет\n>>>")
+        if would_buy == 1:
+            return [product_name, product_price, full_product_quantity, total_arsenal]
+        if would_buy == 2:
+            print("Отменяем покупку...")
+            return False
         """ Если товар был куплен в нескольких количествах. """
 
     def buy_product(self):
@@ -97,8 +104,11 @@ class Main:
                         product_info = self.buy_few_products(
                             product_name, product_price.split("/")
                         )
+                    if product_info == False:
+                        raise ValueError
                 except:
-                    pass
+                    print("breaking!")
+                    break
                 else:
                     self.add_product_to_player_data(
                         product_name=product_info[0],
@@ -109,11 +119,10 @@ class Main:
 
                     savingStatus = self.save_player_data()
                     if savingStatus == True:
-                        print(
-                            f"\nТовар: {product_name}\nКоличество: {product_info[2]}\nЦена за штуку: {product_info[1]:,}\n"
-                        )
                         print("| Данные успешно сохранены.")
                         return False
+                print("1!")
+                product_quantity = 0
                 product_price = int(product_price)
                 if product_price == 0:
                     break
@@ -139,16 +148,16 @@ class Main:
                     for key, value in product_buy_list.items()
                 ]
                 print(f"Общее количество: {total_quantity}\n")
-            arsenal_price = arsenal_prices.get(product_name)
-            total_arsenal = arsenal_price * product_quantity
-            # Сохранение данных о покупке
-            self.add_product_to_player_data(
-                product_name,
-                total_product_price,
-                total_quantity,
-                total_arsenal,
-            )
-            return True
+                arsenal_price = arsenal_prices.get(product_name)
+                total_arsenal = arsenal_price * product_quantity
+                # Сохранение данных о покупке
+                self.add_product_to_player_data(
+                    product_name,
+                    total_product_price,
+                    total_quantity,
+                    total_arsenal,
+                )
+                return True
 
     def add_product_to_player_data(
         self,
