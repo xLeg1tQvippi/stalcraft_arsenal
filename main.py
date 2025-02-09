@@ -158,7 +158,8 @@ class Main:
                     total_quantity,
                     total_arsenal,
                 )
-                return True
+                continue
+            return True
 
     def add_product_to_player_data(
         self,
