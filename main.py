@@ -70,11 +70,24 @@ class Main:
         )
         would_buy = self.input_int("Покупаем?\n1 - Да\n2 - Нет\n>>>")
         if would_buy == 1:
-            return [product_name, product_price, full_product_quantity, total_arsenal]
+            return [
+                product_name,
+                product_price,
+                full_product_quantity,
+                full_product_price,
+            ]
         if would_buy == 2:
             print("Отменяем покупку...")
             return False
         """ Если товар был куплен в нескольких количествах. """
+
+    def show_product_buy_list(self, product_buy_list: dict, total_price: int):
+        total_quantity = 0
+        print(f"\nОбщая цена: {total_price:,}р.")
+        for key, value in product_buy_list.items():
+            total_quantity += value
+            print(f"{int(key):,}р. - x{value}")
+        print(f"Общее количество: {total_quantity}шт.\n")
 
     def buy_product(self):
         # Просим пользователя ввести название товара
@@ -82,6 +95,7 @@ class Main:
         """Какой предмет купил, за какую цену, в каком количестве"""
         while True:
             total_product_price = 0
+            full_product_price_buy_few = 0
             total_quantity = 0
             product_buy_list = {}
             completer = WordCompleter(arsenal_prices.keys(), ignore_case=True)
@@ -93,36 +107,58 @@ class Main:
                 continue
             while True:
                 product_price = input(
-                    "Введите \033[1;4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
+                    f"Введите \033[1;4mцену товара\033[0m - покупаем: {product_name}\n>>>"
                 ).replace(" ", "")
+                if product_price == "0":
+                    break
+                buy_few_products_status = [False, False]
+                denyingPayment = False
+                buy_few_products_bool_status = False
                 try:
                     if "-" in product_price:
                         product_info = self.buy_few_products(
                             product_name, product_price.split("-")
                         )
+                        if product_info != False:
+                            buy_few_products_status[0] = True
+                    else:
+                        buy_few_products_status[0] = False
                     if "/" in product_price:
                         product_info = self.buy_few_products(
                             product_name, product_price.split("/")
                         )
-                    if product_info == False:
-                        raise ValueError
-                except:
-                    if "-" not in product_price or "/" not in product_price:
-                        pass
+                        if product_info != False:
+                            buy_few_products_status[1] = True
                     else:
-                        break
+                        buy_few_products_status[1] = False
+                    if product_info == False:
+                        denyingPayment = True
+                        continue
+                    # Проверка статусов.
+
+                    if (
+                        buy_few_products_status[0] == False
+                        and buy_few_products_status[1] == False
+                    ):
+                        buy_few_products_bool_status = False
+                        raise ValueError
+
+                except:
+                    if buy_few_products_bool_status == False:
+                        pass
                 else:
                     self.add_product_to_player_data(
                         product_name=product_info[0],
                         product_price=(product_info[1] * product_info[2]),
                         product_quantity=product_info[2],
-                        total_arsenal=product_info[3],
                     )
-
-                    savingStatus = self.save_player_data()
-                    if savingStatus == True:
-                        print("| Данные успешно сохранены.")
-                        return False
+                    product_buy_list[str(product_info[1])] = product_info[2]
+                    total_product_price += product_info[3]
+                    self.show_product_buy_list(
+                        product_buy_list,
+                        total_product_price,
+                    )
+                    continue
                 product_quantity = 0
                 product_price = int(product_price)
                 if product_price == 0:
@@ -143,21 +179,14 @@ class Main:
                 product_buy_list[str(product_price)] = product_quantity
                 total_product_price += product_price * product_quantity
                 total_quantity += product_quantity
-                print(f"\nОбщая цена: {total_product_price:,}р.")
-                [
-                    print(f"{int(key):,}р. - x{value}")
-                    for key, value in product_buy_list.items()
-                ]
-                print(f"Общее количество: {total_quantity}\n")
-                arsenal_price = arsenal_prices.get(product_name)
-                total_arsenal = arsenal_price * product_quantity
+                self.show_product_buy_list(
+                    product_buy_list, total_price=total_product_price
+                )
                 # Сохранение данных о покупке
                 self.add_product_to_player_data(
-                    product_name,
-                    total_product_price,
-                    total_quantity,
-                    total_arsenal,
+                    product_name, total_product_price, total_quantity
                 )
+                # Повторение цикла, если пользватель не ввел ноль.
                 continue
             return True
 
@@ -166,9 +195,12 @@ class Main:
         product_name: str,
         product_price: int,
         product_quantity: int,
-        total_arsenal: int,
     ) -> dict:
         """Добавляем данные в статистику игрока о купленных товарах с аукциона."""
+        try:
+            total_arsenal = arsenal_prices[product_name] * product_quantity
+        except:
+            total_arsenal = 0
         if product_name not in player_data:
             player_data[product_name] = {
                 "total_price": product_price,
