@@ -176,7 +176,10 @@ class Main:
                         "\033[31mОшибка! Максимальное вводимое количество товара - 99.\033[0m"
                     )
                     continue
-                product_buy_list[str(product_price)] = product_quantity
+                if str(product_price) in product_buy_list.keys():
+                    product_buy_list[str(product_price)] += product_quantity
+                else:
+                    product_buy_list[str(product_price)] = product_quantity
                 total_product_price += product_price * product_quantity
                 total_quantity += product_quantity
                 self.show_product_buy_list(
