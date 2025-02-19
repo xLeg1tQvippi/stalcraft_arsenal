@@ -4,6 +4,7 @@ from player_data_sell import player_data_sell
 from player_data_auction import player_data_auction
 from player_data_loss import player_data_loss
 from wordCompleterDicts import hours
+import pandas as pd
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import colorama
@@ -11,8 +12,8 @@ import colorama
 
 class Main:
     def __init__(self):
-        self.start()
         colorama.init()
+        self.start()
 
     def start(self):
         while True:
@@ -36,7 +37,7 @@ class Main:
 
     # 1 - buy_product_instructions
     # 2 - sell_product_instructions
-    # 3 - calculating_instructions я
+    # 3 - calculating_instructions
     # 4 - count_price_to_arsenal
 
     def input_int(self, text: str):
@@ -239,12 +240,14 @@ class Main:
                 while True:
                     closingStatus = self.remove_product_auction_success()
                     if closingStatus == 0:
-                        break
+                        continue
                     returningStatus = self.save_player_data_auction(player_data_auction)
                     if returningStatus == True:
                         print("Сохранено")
             elif choice == "3":
-                self.remove_product_auction_failure()
+                closingStatus = self.remove_product_auction_failure()
+                if closingStatus == 0:
+                    break
                 pass
             elif choice == "0":
                 break
@@ -435,8 +438,8 @@ class Main:
         while True:
             # Получаем [название товара, ключ количества, данные]
             data = self.select_product_and_data()
-            if data == 0:
-                break
+            if data == None:
+                return 0
             selected_product = data[0]  # "лямбда"
             selected_quantity_key = data[1]  # "2"
             selected_data = data[2]  # Данные конкретного варианта
@@ -733,62 +736,75 @@ class Main:
             gain: int = self.calculate_priview_prices(product_name, sell_product_price)
             print(f"Выгода: {gain:,}р. (С учетом комисии аукциона: 5%)")
 
+    def create_dataFrame_player_data(self):
+        df = pd.DataFrame.from_dict(player_data, orient="index")
+        df = df.rename(
+            columns={
+                "total_price": "общая_цена",
+                "total_quantity": "количество",
+                "total_arsenal": "репутация",
+            }
+        )
+        total_price_summed = df["общая_цена"].sum()
+        total_reputation = df["репутация"].sum()
+        df.index.name = "\033[4m\033[0m\033[33m - Товар на складе -\033[0m"
+        df = df.sort_values(by=["общая_цена"], ascending=[False])
+        df = [df, total_price_summed, total_reputation]
+        print(df[0])
+        print(
+            f"\033[4mВсего денег затрачено\033[0m: {df[1]:,}р.\n\033[4mВсего репутации арсенала:\033[0m {df[2]:,}\n"
+        )
+
+    def create_dataFrame_player_data_sell(self):
+        df = pd.DataFrame.from_dict(player_data_sell, orient="index")
+        df = df.rename(
+            columns={
+                "total_price": "цена_продажи",
+                "total_quantity": "количество",
+                "middle_price_buy": "цена_покупки_шт",
+            }
+        )
+        df.index.name = "\033[4m\033[0m\033\033[33m - Проданный товар -\033[0m"
+        total_price_sell = df["цена_продажи"].sum()
+        df = df.sort_values(by=["цена_продажи"], ascending=[False])
+
+        df["цена_продажи_шт"] = df["цена_продажи"] // df["количество"]
+        df["цена_покупки"] = df["цена_покупки_шт"] * df["количество"]
+        total_price_buy = df["цена_покупки"].sum()
+        df["выгода"] = (df["цена_продажи_шт"] - df["цена_покупки_шт"]) * df[
+            "количество"
+        ]
+        total_prodit = df["выгода"].sum()
+        df["окупаемость"] = df.apply(
+            lambda row: f"{round((row['цена_продажи'] / (row['цена_покупки_шт'] * row['количество'])) * 100, 1)}%",
+            axis=1,
+        )
+
+        df["выгода"] = df["выгода"].apply(lambda x: f"{int(x):,}р.")
+        df["цена_продажи"] = df["цена_продажи"].apply(lambda x: f"{int(x):,}р.")
+        df["цена_покупки"] = df["цена_покупки"].apply(lambda x: f"{int(x):,}р.")
+        df["цена_продажи_шт"] = df["цена_продажи_шт"].apply(lambda x: f"{int(x):,}р.")
+        df["цена_покупки_шт"] = df["цена_покупки_шт"].apply(lambda x: f"{int(x):,}р.")
+        df = df.reindex(
+            columns=[
+                "цена_продажи",
+                "цена_покупки",
+                "выгода",
+                "окупаемость",
+                "количество",
+                "цена_продажи_шт",
+                "цена_покупки_шт",
+            ]
+        )
+        print(df)
+        print(
+            f"\nВсего денег потрачено: {total_price_buy:,}р.\nВсего денег заработано: {total_price_sell:,}р.\nВыгода за все товары: {total_prodit:,}р.\n"
+        )
+
     def difference(self):
         print("Разница между покупкой и продажей")
-        print(f"\033[33m - Товар на складе -\033[0m")
-
-        for key in player_data.keys():
-            print(f"\nТовар: {key}")
-            print(
-                f"Покупка: {player_data[key]['total_price']:,}р. - {player_data[key]['total_price'] // player_data[key]['total_quantity']:,}р. за штуку."
-            )
-            print(f"Количество: x{player_data[key]['total_quantity']}")
-
-            total_arsenal = player_data[key].get("total_arsenal", 0)
-            if total_arsenal == 0:
-                print("Валюта арсенала: У товара нету валюты арсенала.")
-            else:
-                print(f"Валюта арсенала: {total_arsenal}")
-
-        print(f"\n\033[33m- Товар который был уже продан -\033[0m")
-        total_profit = 0
-        for key in player_data_sell.keys():
-            print(f"\nТовар: {key} - {player_data_sell[key]['total_quantity']}шт.")
-
-            middle_price = player_data_sell[key].get("middle_price_buy", 0)
-            total_quantity = player_data_sell[key]["total_quantity"]
-            total_price = player_data_sell[key]["total_price"]
-
-            if middle_price == 0:
-                print("Выгода: Отсутствует средняя цена.")
-            else:
-                print(
-                    f"Цена покупки: {middle_price * total_quantity:,}р. ({middle_price:,}р. за штуку.)"
-                )
-
-            print(
-                f"Продажа: {total_price:,}р. - {total_price // total_quantity:,}р. за штуку."
-            )
-
-            profit = total_price - (middle_price * total_quantity)
-            total_profit += profit
-            print(f"Выгода: {round(profit, 2):,}р.")
-
-            if middle_price * total_quantity != 0:
-                profitability = round(
-                    total_price / ((middle_price * total_quantity) / 100), 1
-                )
-                print(f"Окупаемость: {profitability}%")
-            else:
-                print("Окупаемость: невозможно рассчитать (деление на ноль).")
-
-        print(
-            f"\nВсего денег потрачено: {sum(value['total_price'] for value in player_data.values()):,}р."
-        )
-        print(
-            f"Всего денег заработано: {sum(value['total_price'] for value in player_data_sell.values()):,}р."
-        )
-        print(f"Выгода за все товары: {round(total_profit, 2):,}р.")
+        df = self.create_dataFrame_player_data()
+        df = self.create_dataFrame_player_data_sell()
 
     def search_bought_product(self):
         while True:
