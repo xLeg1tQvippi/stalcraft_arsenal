@@ -1,0 +1,1 @@
+player_data_loss = {'сталь': {'loss': 599.96, 'total_quantity': 10}, 'водонос': {'loss': 959.96, 'total_quantity': 2}}

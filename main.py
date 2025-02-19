@@ -2,6 +2,8 @@ from arsenal_data.arsenal_data_price import arsenal_prices
 from player_data_buy import player_data
 from player_data_sell import player_data_sell
 from player_data_auction import player_data_auction
+from player_data_loss import player_data_loss
+from wordCompleterDicts import hours
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 import colorama
@@ -37,15 +39,17 @@ class Main:
     # 3 - calculating_instructions я
     # 4 - count_price_to_arsenal
 
-    """ 1.Покупка товаров на аукционе """
-
-    def input_int(self, message):
+    def input_int(self, text: str):
         while True:
             try:
-                return int(input(message))
-            except ValueError:
-                print("Введите число")
+                text = int(input(text))
+            except:
+                print("введите число")
                 continue
+            else:
+                return text
+
+    """ 1.Покупка товаров на аукционе """
 
     def buy_product_instructions(self):
         """Тут находится основная логика последовательности действий."""
@@ -181,15 +185,13 @@ class Main:
                 else:
                     product_buy_list[str(product_price)] = product_quantity
                 total_product_price += product_price * product_quantity
-                total_quantity += product_quantity
+                self.add_product_to_player_data(
+                    product_name, product_price * product_quantity, product_quantity
+                )
+
                 self.show_product_buy_list(
                     product_buy_list, total_price=total_product_price
                 )
-                # Сохранение данных о покупке
-                self.add_product_to_player_data(
-                    product_name, total_product_price, total_quantity
-                )
-                # Повторение цикла, если пользватель не ввел ноль.
                 continue
             return True
 
@@ -226,7 +228,7 @@ class Main:
     def sell_product_instructions(self):
         while True:
             print(
-                "Введите:\n1 - для выставки товара на аукцион\n2 - для удаления товара\n0 - для выхода"
+                "Введите:\n1 - для выставки товара на аукцион\n2 - товар куплен (удаление с акциона)\n3 - товар не продан (удаление с аукциона)\n0 - для выхода"
             )
             choice = input(">>>")
             if choice == "1":
@@ -234,143 +236,399 @@ class Main:
                 if status == True:
                     print("Товар выставлен на аукцион.")
             elif choice == "2":
-                currentDataAuction = self.remove_product_auction()
-                returningStatus = self.save_player_data_auction(player_data_auction)
-                if returningStatus == True:
-                    print("Сохранено")
+                while True:
+                    closingStatus = self.remove_product_auction_success()
+                    if closingStatus == 0:
+                        break
+                    returningStatus = self.save_player_data_auction(player_data_auction)
+                    if returningStatus == True:
+                        print("Сохранено")
+            elif choice == "3":
+                self.remove_product_auction_failure()
+                pass
             elif choice == "0":
                 break
 
-    def sell_product(self):
+    def check_product_price(self, text: str):
         while True:
-            completer = WordCompleter(player_data.keys(), ignore_case=True)
-            product_name = prompt("Введите название товара: ", completer=completer)
-            if product_name == "exit":
-                break
-            while True:
-                product_price = input(
-                    "Введите \033[4mцену товара\033[0m\nВведите \033[4m'/'\033[0m или \033[4m'-'\033[0m после цены для покупки несколько товаров.\n>>>"
-                ).replace(" ", "")
-                try:
-                    if "-" in product_price:
-                        product_info = self.buy_few_products(
-                            product_name, product_price.split("-")
-                        )
-                    if "/" in product_price:
-                        product_info = self.buy_few_products(
-                            product_name, product_price.split("/")
-                        )
-                    if product_info == False:
-                        raise ValueError
-                except:
-                    if "-" not in product_price or "/" not in product_price:
-                        pass
-                    else:
-                        break
-                else:
-                    savingStatus = self.add_product_to_player_data_auction(
-                        product_name=product_info[0],
-                        product_price=(product_info[1] * product_info[2]),
-                        product_quantity=product_info[2],
-                    )
-                    if savingStatus == True:
-                        print("|- Данные успешно сохранены.")
-                        return True
-                product_price = int(product_price)
+            try:
+                product_price = int(input(text))
+            except Exception as error:
+                continue
+            else:
                 if product_price == 0:
-                    break
+                    return 0
                 if product_price < 1000:
                     print("Минимальная цена товара - 1000р.")
                     continue
-                product_quantity = self.input_int("Введите количество товара: ")
+                else:
+                    return product_price
+
+    def check_if_miltuply_sell_product(self, text: str):
+        try:
+            if "*" in text:
+                separate = text.split("*")
+                separate = [int(obj) for obj in separate]
+                return [separate, True]
+            else:
+                raise ValueError
+        except:
+            return [text, False]
+
+    def input_check_product_quantity(self, text: str):
+        while True:
+            try:
+                product_quantity = input(text)
+                status_data = self.check_if_miltuply_sell_product(product_quantity)
+                if status_data[1] == True:
+                    return [status_data[0], True]
+                if status_data[1] == False:
+                    product_quantity = int(product_quantity)
+            except Exception as error:
+                print("Введите число", error)
+                continue
+            else:
+                if product_quantity == 0:
+                    return 0
                 if product_quantity > 99:
                     print("Максимальное вводимое количество товара - 99.")
                     continue
+                else:
+                    return [product_quantity, False]
+
+    def check_product_quantity(self, product_name: str, product_quantity: int):
+        if product_name not in player_data.keys():
+            print("Товар отсутствует")
+        else:
+            if player_data[product_name]["total_quantity"] < product_quantity:
+                return False
+            else:
+                return True
+
+    def show_product_data(self, product_name: str):
+        if product_name in player_data.keys():
+            print(f"\nТовар: {product_name}")
+            print(
+                f"Покупка: {player_data[product_name]['total_price']:,}р. - {player_data[product_name]['total_price'] // player_data[product_name]['total_quantity']:,}р. за штуку."
+            )
+            print(f"Количество: x{player_data[product_name]['total_quantity']}")
+        print()
+
+    def sell_product(self):
+        while True:
+            completer_hours = WordCompleter(hours.keys(), ignore_case=True)
+            completer_item_name = WordCompleter(player_data.keys(), ignore_case=True)
+            product_name = prompt(
+                "Введите название товара: ", completer=completer_item_name
+            )
+            if product_name == "0":
+                break
+            self.show_product_data(product_name)
+            while True:
+                starting_price = self.input_int(
+                    "\033[4;1mСтартовая\033[0m цена товара: "
+                )
+                if starting_price == 0:
+                    break
+                product_price = self.check_product_price(
+                    "Цена \033[4;1mвыкупа:\033[0m "
+                )
+                if product_price == 0:
+                    break
+
+                while True:
+                    product_living_hours = prompt("Срок: ", completer=completer_hours)
+                    if product_living_hours not in hours.keys():
+                        print("Введено неверное время.")
+                        continue
+                    else:
+                        break
+                while True:
+                    product_quantity = self.input_check_product_quantity(
+                        "Введите количество товара '10*4':"
+                    )
+                    if type(product_quantity[0]) == list:
+                        product_quantity_check = (
+                            product_quantity[0][0] * product_quantity[0][1]
+                        )
+                        status = self.check_product_quantity(
+                            product_name, product_quantity=product_quantity_check
+                        )
+                    else:
+                        status = self.check_product_quantity(
+                            product_name, product_quantity=product_quantity[0]
+                        )
+                    if status == False:
+                        print(
+                            f"Количество товара на складе: {player_data[product_name]['total_quantity']}"
+                        )
+                        continue
+                    if status == True:
+                        break
                 if product_quantity == 0:
                     break
-                status = self.add_product_to_player_data_auction(
-                    product_name, (product_price * product_quantity), product_quantity
-                )
+                if product_quantity[1] == True:
+                    count = 0
+                    for i in range(product_quantity[0][1]):
+                        if count == product_quantity[0][1]:
+                            print("breaking!")
+                            break
+                        status = self.add_product_to_player_data_auction(
+                            product_name=product_name,
+                            starting_price=starting_price,
+                            product_price=product_price,
+                            product_quantity=product_quantity[0][0],
+                            product_hours=hours[product_living_hours],
+                        )
+                        count += 1
+                if product_quantity[1] == False:
+                    status = self.add_product_to_player_data_auction(
+                        product_name=product_name,
+                        starting_price=starting_price,
+                        product_price=product_price,
+                        product_quantity=product_quantity[0],
+                        product_hours=hours[product_living_hours],
+                    )
                 if status == True:
                     return True
 
-    def remove_product_auction(self) -> dict:
+    def select_product_and_data(self) -> dict:
+        items_completer = WordCompleter(player_data_auction.keys(), ignore_case=True)
+        selected_item = prompt("Выберите товар: ", completer=items_completer)
+        if selected_item == 0:
+            return 0
+
+        selected_data = None  # Полные данные варианта
+        selected_quantity_key = None  # Сюда сохраним ключ (например, "2")
+
+        # Проверяем, есть ли товар в словаре и содержит ли он варианты
+        if selected_item in player_data_auction and isinstance(
+            player_data_auction[selected_item], dict
+        ):
+            options = {}
+
+            for quantity, entries in player_data_auction[selected_item].items():
+                if isinstance(entries, list):  # Если есть вложенные списки с ценами
+                    for entry in entries:
+                        key = f"{quantity} - {entry['product_price']}"  # "2 - 325000"
+                        options[key] = (quantity, entry)  # Сохраняем (ключ, данные)
+
+            if options:
+                # **ШАГ 2:** Выбираем конкретный вариант
+                quantity_completer = WordCompleter(options.keys(), ignore_case=True)
+                selected_option = prompt(
+                    "Выберите вариант: ", completer=quantity_completer
+                )
+
+                # **ШАГ 3:** Получаем полный объект и его ключ
+                selected_quantity_key, selected_data = options[selected_option]
+
+                print("\nВы выбрали:", selected_option)
+                return [selected_item, selected_quantity_key, selected_data]
+            else:
+                print("Для данного товара нет вариаций с ценами.")
+        else:
+            print("Ошибка: товар не найден или не содержит вариантов.")
+
+    def remove_product_auction_failure(self):
+        """Удаляет товар из статистики аукциона и возвращает количество обратно в player_data."""
+        while True:
+            # Получаем [название товара, ключ количества, данные]
+            data = self.select_product_and_data()
+            if data == 0:
+                break
+            selected_product = data[0]  # "лямбда"
+            selected_quantity_key = data[1]  # "2"
+            selected_data = data[2]  # Данные конкретного варианта
+
+            if not selected_data:
+                print("Ошибка: данные не найдены.")
+                continue
+
+            product_variants = player_data_auction.get(selected_product, {}).get(
+                selected_quantity_key, []
+            )
+
+            # Находим индекс выбранного варианта
+            try:
+                selected_index = product_variants.index(selected_data)
+            except ValueError:
+                print("Ошибка: вариант товара не найден.")
+                continue
+
+            # Извлекаем удаляемый вариант
+            removed_data = product_variants.pop(selected_index)
+            if not product_variants:
+                del player_data_auction[selected_product][selected_quantity_key]
+
+            # Если после удаления не осталось вариантов — удаляем товар полностью
+            if not player_data_auction[selected_product]:
+                del player_data_auction[selected_product]
+
+            # Возвращаем товар обратно в player_data
+            self.return_product_to_player_inventory(
+                selected_product, selected_quantity_key, removed_data
+            )
+
+    def create_returning_data(
+        self, product_name: str, selected_quantity_key: str, removed_data: dict
+    ):
+        total_price = removed_data["middle_price_buy"] * int(selected_quantity_key)
+        product_arsenal = arsenal_prices.get(product_name)
+        total_arsenal = product_arsenal * int(selected_quantity_key)
+        data = {
+            "total_price": total_price,
+            "total_quantity": int(selected_quantity_key),
+            "total_arsenal": total_arsenal,
+        }
+        return data
+
+    def save_player_data_loss(self, product_name: str, quantity: str, lossity: int):
+        if product_name not in player_data_loss.keys():
+            player_data_loss[product_name] = {
+                "loss": lossity,
+                "total_quantity": int(quantity),
+            }
+        if product_name in player_data_loss.keys():
+            player_data_loss[product_name]["loss"] += lossity
+            player_data_loss[product_name]["total_quantity"] += int(quantity)
+
+        with open("player_data_loss.py", "w", encoding="utf-8") as file:
+            file.write(f"player_data_loss = {repr(player_data_loss)}")
+            print("player_data_loss saved!")
+
+    def calculate_player_data_loss(
+        self, product_name: str, selected_quantity_key: str, removed_data: dict
+    ):
+        hours_loss = {6: 1, 12: 2, 24: 3, 48: 5}
+        lossity = (removed_data["starting_price"] / 100) * hours_loss[
+            removed_data["product_hours"]
+        ]
+        self.save_player_data_loss(product_name, selected_quantity_key, lossity)
+
+    def create_add_return_product_data(
+        self, product_name: str, selected_quantity_key: str, removed_data: dict
+    ):
+        total_price = removed_data["middle_price_buy"] * int(selected_quantity_key)
+        product_arsenal = arsenal_prices.get(product_name)
+        total_arsenal = product_arsenal * int(selected_quantity_key)
+        player_data[product_name]["total_price"] += total_price
+        player_data[product_name]["total_quantity"] += int(selected_quantity_key)
+        player_data[product_name]["total_arsenal"] += total_arsenal
+        return True
+
+    def return_product_to_player_inventory(
+        self, product_name: str, selected_quantity_key: str, removed_data: dict
+    ):
+        """Требуется получить данные о изначальной цене продукта за 1 шт: complete"""
+        if product_name not in player_data.keys():
+            player_data[product_name] = self.create_returning_data(
+                product_name, selected_quantity_key, removed_data
+            )
+        if product_name in player_data.keys():
+            returnDataStatus = self.create_add_return_product_data(
+                product_name, selected_quantity_key, removed_data
+            )
+            if returnDataStatus:
+                print("Данные успешно возвращены в список покупок.")
+                self.calculate_player_data_loss(
+                    product_name, selected_quantity_key, removed_data
+                )
+
+    def remove_product_auction_success(self) -> dict:
         """Удаляем товар из статистики игрока о купленных товарах."""
         while True:
-            completer = WordCompleter(player_data_auction.keys(), ignore_case=True)
-            product_name = prompt("Введите название товара: ", completer=completer)
-            print(
-                "Количество товара: ",
-                player_data_auction[product_name]["total_quantity"],
-            )
+            data = self.select_product_and_data()
+            if data == None:
+                return 0
+            selected_product = data[0]  # "лямбда"
+            selected_quantity_key = data[1]  # "2"
+            selected_data = data[2]  # Данные конкретного варианта
 
-            if product_name == "exit":
-                break
-            if product_name not in player_data_auction:
-                print("Такого товара нет в списке.")
+            if not selected_data:
+                print("Ошибка: данные не найдены.")
                 continue
 
-            product_quantity = input(
-                "Введите количество проданного товара: (0 - чтобы выйти.)\n>>>"
-            )
-            if product_quantity == "0":
-                break
-            product_quantity = int(product_quantity)
-            middle_price_buy = player_data_auction[product_name]["middle_price_buy"]
-
-            # Цена товара за штуку:
+            product_quantity = int(selected_quantity_key)  # "2" → 2
+            middle_price_buy = selected_data["middle_price_buy"]
             middle_product_price = (
-                player_data_auction[product_name]["total_price"]
-                // player_data_auction[product_name]["total_quantity"]
-            )
+                selected_data["product_price"] // product_quantity
+            )  # Цена за одну штуку
 
-            if player_data_auction[product_name]["total_quantity"] > product_quantity:
-                # В случае если количество товара больше чем ввел пользователь.
-                player_data_auction[product_name]["total_quantity"] -= product_quantity
-                player_data_auction[product_name]["total_price"] = (
-                    middle_product_price
-                    * player_data_auction[product_name]["total_quantity"]
-                )
-            elif player_data_auction[product_name]["total_quantity"] < product_quantity:
-                print(
-                    f"Вы ввели больше чем у вас есть товара. У вас имеется: (x{player_data_auction[product_name]['total_quantity']})"
-                )
+            # Список всех вариантов товара с таким количеством
+            product_variants = player_data_auction[selected_product][
+                selected_quantity_key
+            ]
+
+            # Находим индекс выбранного варианта
+            try:
+                selected_index = product_variants.index(selected_data)
+            except ValueError:
+                print("Ошибка: вариант товара не найден.")
                 continue
-            elif (
-                player_data_auction[product_name]["total_quantity"] == product_quantity
-            ):
-                player_data_auction.pop(product_name)
+
+            # Проверяем, если у товара есть другие вариации, обновляем данные
+            if len(product_variants) > 1:
+                product_variants.pop(selected_index)  # Удаляем конкретный вариант
+            else:
+                # Если это был единственный вариант, удаляем весь ключ количества
+                del player_data_auction[selected_product][selected_quantity_key]
+
+            # Если после удаления не осталось вариантов — удаляем товар полностью
+            if not player_data_auction[selected_product]:
+                del player_data_auction[selected_product]
+
+            # Добавляем в статистику продажи
             self.add_product_to_player_data_sell(
-                product_name,
+                selected_product,
                 (middle_product_price * product_quantity),
                 product_quantity,
                 middle_price_buy,
             )
-            return player_data_auction
+
+            return player_data_auction  # Возвращаем обновленный словарь
+
+    def create_data_add_auction(self, product_quantity: int, data: dict) -> dict:
+        creating_data = {f"{product_quantity}": data}
+        return creating_data
 
     def add_product_to_player_data_auction(
         self,
         product_name: str,
+        starting_price: int,
         product_price: int,
         product_quantity: int,
-    ) -> dict:
+        product_hours: int,
+    ) -> bool:
         """Добавляем данные в статистику игрока о проданных товарах."""
         middle_price_buy = (
             player_data[product_name]["total_price"]
             // player_data[product_name]["total_quantity"]
         )
         if product_name not in player_data_auction:
-            player_data_auction[product_name] = {
-                "total_price": (product_price // 100) * 95,
-                "total_quantity": product_quantity,
-                "middle_price_buy": middle_price_buy,
-            }
+            player_data_auction[product_name] = self.create_data_add_auction(
+                product_quantity,
+                [
+                    {
+                        "starting_price": starting_price,
+                        "product_price": product_price,
+                        "product_hours": product_hours,
+                        "middle_price_buy": middle_price_buy,
+                    }
+                ],
+            )
         else:
-            player_data_auction[product_name]["total_price"] += (
-                product_price // 100
-            ) * 95
-            player_data_auction[product_name]["total_quantity"] += product_quantity
+            if f"{product_quantity}" not in player_data_auction[product_name]:
+                player_data_auction[product_name][f"{product_quantity}"] = []
 
+            player_data_auction[product_name][f"{product_quantity}"].append(
+                {
+                    "starting_price": starting_price,
+                    "product_price": product_price,
+                    "product_hours": product_hours,
+                    "middle_price_buy": middle_price_buy,
+                }
+            )
         status = self.save_player_data_auction(player_data_auction)
         removingStatus = self.remove_product_from_player_data_buy(
             product_name, product_quantity
@@ -381,13 +639,14 @@ class Main:
     def remove_product_from_player_data_buy(
         self, product_name: str, product_quantity: int
     ) -> dict:
+        print("remove product!", product_quantity)
         """При выставлении товара на аукцион, удаляем его из статистики покупок."""
+        middle_price = (
+            player_data[product_name]["total_price"]
+            // player_data[product_name]["total_quantity"]
+        )
         if player_data[product_name]["total_quantity"] > product_quantity:
             player_data[product_name]["total_quantity"] -= product_quantity
-            middle_price = (
-                player_data[product_name]["total_price"]
-                // player_data[product_name]["total_quantity"]
-            )
             player_data[product_name]["total_price"] -= middle_price * product_quantity
         elif player_data[product_name]["total_quantity"] < product_quantity:
             print(
@@ -410,14 +669,16 @@ class Main:
         self, product_name, product_price, product_quantity, middle_price_buy
     ):
         """Добавляем данные в статистику игрока о проданных товарах."""
+        product_price_after_tax = (product_price / 100) * 95  # Учитываем комиссию 5%
+
         if product_name not in player_data_sell:
             player_data_sell[product_name] = {
-                "total_price": product_price,
+                "total_price": product_price_after_tax,
                 "total_quantity": product_quantity,
                 "middle_price_buy": middle_price_buy,
             }
         else:
-            player_data_sell[product_name]["total_price"] += product_price
+            player_data_sell[product_name]["total_price"] += product_price_after_tax
             player_data_sell[product_name]["total_quantity"] += product_quantity
 
         self.save_player_data_sell(player_data_sell)
@@ -433,11 +694,13 @@ class Main:
     def calculating_instructions(self):
         while True:
             choice = self.input_int(
-                "Введите:\n1 - Статистика продаж/покупок\n2 - предварительный рассчет товара на аукцион\n0 - для выхода\n>>>"
+                "Введите:\n1 - Статистика продаж/покупок\n2 - Поиск купленного товара\n3 - предварительный рассчет товара на аукцион\n0 - для выхода\n>>>"
             )
             if choice == 1:
                 self.difference()
-            elif choice == 2:
+            if choice == 2:
+                self.search_bought_product()
+            elif choice == 3:
                 self.preview_calculating()
             elif choice == 0:
                 break
@@ -473,49 +736,81 @@ class Main:
     def difference(self):
         print("Разница между покупкой и продажей")
         print(f"\033[33m - Товар на складе -\033[0m")
+
         for key in player_data.keys():
-            print()
-            print(f"Товар: {key}")
+            print(f"\nТовар: {key}")
             print(
-                f"Покупка: {player_data[key]['total_price']:,}р. - {player_data[key]['total_price'] // player_data[key]["total_quantity"]:,}р. за штуку."
+                f"Покупка: {player_data[key]['total_price']:,}р. - {player_data[key]['total_price'] // player_data[key]['total_quantity']:,}р. за штуку."
             )
             print(f"Количество: x{player_data[key]['total_quantity']}")
-            try:
-                total_arsenal = player_data[key]["total_arsenal"]
-                if total_arsenal == 0:
-                    raise ValueError
-            except ValueError:
+
+            total_arsenal = player_data[key].get("total_arsenal", 0)
+            if total_arsenal == 0:
                 print("Валюта арсенала: У товара нету валюты арсенала.")
             else:
                 print(f"Валюта арсенала: {total_arsenal}")
-            print()
-        print(f"\033[33m- Товар который был уже продан -\033[0m")
+
+        print(f"\n\033[33m- Товар который был уже продан -\033[0m")
+        total_profit = 0
         for key in player_data_sell.keys():
-            print()
-            print(f"Товар: {key} - {player_data_sell[key]['total_quantity']}шт.")
-            try:
-                middle_price = player_data_sell[key]["middle_price_buy"]
-            except:
-                print("Выгода: Отсутсвует средняя цена.")
+            print(f"\nТовар: {key} - {player_data_sell[key]['total_quantity']}шт.")
+
+            middle_price = player_data_sell[key].get("middle_price_buy", 0)
+            total_quantity = player_data_sell[key]["total_quantity"]
+            total_price = player_data_sell[key]["total_price"]
+
+            if middle_price == 0:
+                print("Выгода: Отсутствует средняя цена.")
             else:
                 print(
-                    f"Цена покупки: {middle_price * player_data_sell[key]["total_quantity"]:,}р. ({middle_price:,}р. за штуку.)"
+                    f"Цена покупки: {middle_price * total_quantity:,}р. ({middle_price:,}р. за штуку.)"
                 )
+
             print(
-                f"Продажа: {player_data_sell[key]['total_price']:,} - {player_data_sell[key]['total_price'] // player_data_sell[key]["total_quantity"]:,}р. за штуку."
+                f"Продажа: {total_price:,}р. - {total_price // total_quantity:,}р. за штуку."
             )
-            print(
-                f"Выгода: {player_data_sell[key]['total_price'] - middle_price * player_data_sell[key]['total_quantity']:,}р."
-            )
-            print(
-                f"Окупаемость: {round(player_data_sell[key]['total_price'] / ((middle_price * player_data_sell[key]['total_quantity']) / 100), 1)}%"
-            )
+
+            profit = total_price - (middle_price * total_quantity)
+            total_profit += profit
+            print(f"Выгода: {round(profit, 2):,}р.")
+
+            if middle_price * total_quantity != 0:
+                profitability = round(
+                    total_price / ((middle_price * total_quantity) / 100), 1
+                )
+                print(f"Окупаемость: {profitability}%")
+            else:
+                print("Окупаемость: невозможно рассчитать (деление на ноль).")
+
         print(
-            f"\nВсего денег потрачено: {sum([value["total_price"] for value in player_data.values()]):,}р."
+            f"\nВсего денег потрачено: {sum(value['total_price'] for value in player_data.values()):,}р."
         )
         print(
-            f"Всего денег заработано: {sum([value['total_price'] for value in player_data_sell.values()]):,}р.\n"
+            f"Всего денег заработано: {sum(value['total_price'] for value in player_data_sell.values()):,}р."
         )
+        print(f"Выгода за все товары: {round(total_profit, 2):,}р.")
+
+    def search_bought_product(self):
+        while True:
+            completer = WordCompleter(player_data.keys(), ignore_case=True)
+            search_product = prompt(
+                "Введите товар который желаете найти: ", completer=completer
+            )
+            if search_product == "0":
+                break
+            if search_product in player_data.keys():
+                print(f"\nТовар: {search_product}")
+                print(
+                    f"Покупка: {player_data[search_product]['total_price']:,}р. - {player_data[search_product]['total_price'] // player_data[search_product]['total_quantity']:,}р. за штуку."
+                )
+                print(f"Количество: x{player_data[search_product]['total_quantity']}")
+
+                total_arsenal = player_data[search_product].get("total_arsenal", 0)
+                if total_arsenal == 0:
+                    print("Валюта арсенала: У товара нету валюты арсенала.")
+                else:
+                    print(f"Валюта арсенала: {total_arsenal}")
+                print()
 
     """ 4.Рассчет до 10.000 арсенала """
 
