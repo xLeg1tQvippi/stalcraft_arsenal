@@ -1,7 +1,9 @@
 player_data_auction.py
 player_data_buy.py
 player_data_sell.py
+player_data_loss.py
 test.py
+todo.txt
 plan.txt
 __pycache__
 arsenal_data/__pycache__/

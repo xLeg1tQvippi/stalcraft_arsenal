@@ -7,6 +7,7 @@ from wordCompleterDicts import hours
 import pandas as pd
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
+import os
 import colorama
 
 
@@ -168,8 +169,8 @@ class Main:
                 product_price = int(product_price)
                 if product_price == 0:
                     break
-                if product_price < 1000:
-                    print("\033[31mОшибка! Минимальная цена товара - 1000р.\033[0m")
+                if product_price < 200:
+                    print("\033[31mОшибка! Минимальная цена товара - 200.\033[0m")
                     continue
                 product_quantity = self.input_int(
                     "Введите \033[1;4mколичество\033[0m товара: "
@@ -240,7 +241,7 @@ class Main:
                 while True:
                     closingStatus = self.remove_product_auction_success()
                     if closingStatus == 0:
-                        continue
+                        break
                     returningStatus = self.save_player_data_auction(player_data_auction)
                     if returningStatus == True:
                         print("Сохранено")
@@ -293,8 +294,8 @@ class Main:
             else:
                 if product_quantity == 0:
                     return 0
-                if product_quantity > 99:
-                    print("Максимальное вводимое количество товара - 99.")
+                if product_quantity > 500:
+                    print("Максимальное вводимое количество товара - 500.")
                     continue
                 else:
                     return [product_quantity, False]
@@ -468,6 +469,7 @@ class Main:
             if not player_data_auction[selected_product]:
                 del player_data_auction[selected_product]
 
+            self.save_player_data_auction(player_data_auction)
             # Возвращаем товар обратно в player_data
             self.return_product_to_player_inventory(
                 selected_product, selected_quantity_key, removed_data
@@ -487,14 +489,15 @@ class Main:
         return data
 
     def save_player_data_loss(self, product_name: str, quantity: str, lossity: int):
+        if product_name in player_data_loss.keys():
+            player_data_loss[product_name]["loss"] += lossity
+            player_data_loss[product_name]["total_quantity"] += int(quantity)
+
         if product_name not in player_data_loss.keys():
             player_data_loss[product_name] = {
                 "loss": lossity,
                 "total_quantity": int(quantity),
             }
-        if product_name in player_data_loss.keys():
-            player_data_loss[product_name]["loss"] += lossity
-            player_data_loss[product_name]["total_quantity"] += int(quantity)
 
         with open("player_data_loss.py", "w", encoding="utf-8") as file:
             file.write(f"player_data_loss = {repr(player_data_loss)}")
@@ -523,20 +526,26 @@ class Main:
     def return_product_to_player_inventory(
         self, product_name: str, selected_quantity_key: str, removed_data: dict
     ):
+        print(
+            f"product_name: {product_name}\nselected quantity: {selected_quantity_key}, removed_data: {removed_data}"
+        )
         """Требуется получить данные о изначальной цене продукта за 1 шт: complete"""
-        if product_name not in player_data.keys():
-            player_data[product_name] = self.create_returning_data(
-                product_name, selected_quantity_key, removed_data
-            )
         if product_name in player_data.keys():
             returnDataStatus = self.create_add_return_product_data(
                 product_name, selected_quantity_key, removed_data
             )
-            if returnDataStatus:
-                print("Данные успешно возвращены в список покупок.")
-                self.calculate_player_data_loss(
-                    product_name, selected_quantity_key, removed_data
-                )
+            print("product_name in player_data!")
+        if product_name not in player_data.keys():
+            player_data[product_name] = self.create_returning_data(
+                product_name, selected_quantity_key, removed_data
+            )
+            print("product_not_in_player_data!")
+        print("Данные успешно возвращены в список покупок.")
+        self.calculate_player_data_loss(
+            product_name, selected_quantity_key, removed_data
+        )
+        print("Возвращаем предмет на склад...")
+        self.save_player_data()
 
     def remove_product_auction_success(self) -> dict:
         """Удаляем товар из статистики игрока о купленных товарах."""
@@ -745,8 +754,10 @@ class Main:
                 "total_arsenal": "репутация",
             }
         )
+        df["цена_шт"] = df["общая_цена"] // df["количество"]
         total_price_summed = df["общая_цена"].sum()
         total_reputation = df["репутация"].sum()
+        df["цена_шт"] = df["цена_шт"].apply(lambda x: f"{round(x, 2):,}р.")
         df.index.name = "\033[4m\033[0m\033[33m - Товар на складе -\033[0m"
         df = df.sort_values(by=["общая_цена"], ascending=[False])
         df = [df, total_price_summed, total_reputation]
@@ -755,12 +766,21 @@ class Main:
             f"\033[4mВсего денег затрачено\033[0m: {df[1]:,}р.\n\033[4mВсего репутации арсенала:\033[0m {df[2]:,}\n"
         )
 
+    def create_dataFrame_player_data_loss(self):
+        df = pd.DataFrame.from_dict(player_data_loss, orient="index")
+        df = df.rename(columns={"loss": "потеряно", "total_quantity": "количество"})
+        df.index.name = "\033[33mНе купленный товар\033[0m"
+        total_lost = df["потеряно"].sum()
+        df["потеряно"] = df["потеряно"].apply(lambda x: f"{int(x):,}р.")
+        print(df)
+        print(f"Всего потеряно: {total_lost:,}р.")
+
     def create_dataFrame_player_data_sell(self):
         df = pd.DataFrame.from_dict(player_data_sell, orient="index")
         df = df.rename(
             columns={
                 "total_price": "цена_продажи",
-                "total_quantity": "количество",
+                "total_quantity": "кол-во",
                 "middle_price_buy": "цена_покупки_шт",
             }
         )
@@ -768,15 +788,13 @@ class Main:
         total_price_sell = df["цена_продажи"].sum()
         df = df.sort_values(by=["цена_продажи"], ascending=[False])
 
-        df["цена_продажи_шт"] = df["цена_продажи"] // df["количество"]
-        df["цена_покупки"] = df["цена_покупки_шт"] * df["количество"]
+        df["цена_продажи_шт"] = df["цена_продажи"] // df["кол-во"]
+        df["цена_покупки"] = df["цена_покупки_шт"] * df["кол-во"]
         total_price_buy = df["цена_покупки"].sum()
-        df["выгода"] = (df["цена_продажи_шт"] - df["цена_покупки_шт"]) * df[
-            "количество"
-        ]
+        df["выгода"] = (df["цена_продажи_шт"] - df["цена_покупки_шт"]) * df["кол-во"]
         total_prodit = df["выгода"].sum()
         df["окупаемость"] = df.apply(
-            lambda row: f"{round((row['цена_продажи'] / (row['цена_покупки_шт'] * row['количество'])) * 100, 1)}%",
+            lambda row: f"{round((row['цена_продажи'] / (row['цена_покупки_шт'] * row['кол-во'])) * 100, 1)}%",
             axis=1,
         )
 
@@ -791,20 +809,21 @@ class Main:
                 "цена_покупки",
                 "выгода",
                 "окупаемость",
-                "количество",
+                "кол-во",
                 "цена_продажи_шт",
                 "цена_покупки_шт",
             ]
         )
-        print(df)
+        print(df.to_string())
         print(
-            f"\nВсего денег потрачено: {total_price_buy:,}р.\nВсего денег заработано: {total_price_sell:,}р.\nВыгода за все товары: {total_prodit:,}р.\n"
+            f"\nВсего денег потрачено: {total_price_buy:,}р.\nВсего денег заработано: {round(total_price_sell):,}р.\nВыгода за все товары: {total_prodit:,}р.\n"
         )
 
     def difference(self):
         print("Разница между покупкой и продажей")
-        df = self.create_dataFrame_player_data()
-        df = self.create_dataFrame_player_data_sell()
+        self.create_dataFrame_player_data()
+        self.create_dataFrame_player_data_sell()
+        self.create_dataFrame_player_data_loss()
 
     def search_bought_product(self):
         while True:
@@ -865,4 +884,5 @@ class Main:
 
 
 if __name__ == "__main__":
+    # os.system("mode con: cols=120 lines=30")
     Main()
