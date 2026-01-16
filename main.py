@@ -113,7 +113,7 @@ class Main:
                 continue
             while True:
                 product_price = input(
-                    f"Введите \033[1;4mцену товара\033[0m - покупаем: {product_name}\n>>>"
+                    f"Введите \033[1;4mцену товара\033[0m - покупаем: {product_name} (Доступно разделение: 54000-5 (То есть, 5 товаров за 54000. (Целый лот)))\n>>>"
                 ).replace(" ", "")
                 if product_price == "0":
                     break
@@ -725,7 +725,9 @@ class Main:
             sell_product_price * product_quantity
         ) / 100  # Продажа товара
         total_sell_price: int = sell_price * 95  # Продажа товара с учетом комиссии
+        print(f"name: {product_name}, total_product_price: {total_product_price}, product_quantity: {product_quantity}, sell_price: {sell_price}, total_sell_price: {total_sell_price}")
         gain: int = total_sell_price - total_product_price  # Выгода
+        print('gain:', gain)
         return gain
 
     def preview_calculating(self):
