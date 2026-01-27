@@ -21,6 +21,10 @@ HOURS: dict[str, int] = {
     "48ч": 5 # 5% comission
 }
 
+COLORS = {
+    "ORANGE": '\033[38;2;255;128;0m'
+}
+
 COLORED_ARTEFACT_RARITY_LIST: list[str] = [f"{Fore.WHITE}Обычный", f"{Fore.LIGHTGREEN_EX}Необычный", f"{Fore.LIGHTBLUE_EX}Особый", f"{Fore.MAGENTA}Редкий", f"{Fore.LIGHTRED_EX}Исключительный", f"{Fore.LIGHTYELLOW_EX}Легендарный"]
 NON_COLORED_ARTEFACT_RARITY_LIST: list[str] = ['Обычный', "Необычный", 'Особый', "Редкий", 'Исключительный', "Легендарный"]
 
