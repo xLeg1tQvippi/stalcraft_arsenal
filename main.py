@@ -1,4 +1,4 @@
-from colorama import Fore, Style
+from colorama import Fore, Style, init
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.validation import Validator, ValidationError
@@ -15,7 +15,7 @@ from helping_tools import HelpingTools
 from json_operations import JsonOperations
 from completer_creator import CompleterCreator
 from stats_creator import StatisticCreator
-
+init(autoreset=True)
 class ArsenalMenu:
     def __init__(self):
         self.jsonOperations = JsonOperations()
