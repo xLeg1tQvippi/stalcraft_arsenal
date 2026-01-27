@@ -85,16 +85,22 @@ class StatisticCreator:
             raw_roi = (row['total_benefit'] / row['total_buy_price'] * 100) + 100 if row['total_buy_price'] > 0 else 0
             
             # allocating color for row of benefits percentage
-            if raw_roi >= 100 and raw_roi < 200:
-                roi_color = Fore.GREEN
-            elif 50 <= raw_roi < 100:
+            if raw_roi < 50:
                 roi_color = Fore.YELLOW
-            elif raw_roi > 200 and raw_roi < 300:
+            elif raw_roi >= 100 and raw_roi < 115:
+                roi_color = Fore.WHITE
+            elif raw_roi >= 115 and raw_roi < 130:
                 roi_color = Fore.LIGHTGREEN_EX
-            elif raw_roi > 300 and raw_roi < 400:
+            elif raw_roi >= 130 and raw_roi < 150:
                 roi_color = Fore.LIGHTCYAN_EX
+            elif raw_roi >= 150 and raw_roi < 175:
+                roi_color = Fore.LIGHTMAGENTA_EX
+            elif raw_roi >=175 and raw_roi < 250:
+                roi_color = Fore.LIGHTRED_EX
+            elif raw_roi > 250:
+                roi_color = lexicon.COLORS['ORANGE']
             else:
-                roi_color = Fore.RED
+                roi_color = Fore.LIGHTRED_EX
 
             colored_benefit_percentage = f"{roi_color}{round(raw_roi, 1)}%{Fore.RESET}"
             total_benefit = int(row["total_benefit"])
