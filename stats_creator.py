@@ -53,8 +53,7 @@ class StatisticCreator:
         
         total_spend = df['total_buy_price'].sum()
         total_earned = df['on_sell_price'].sum()
-        total_benefit = df['total_benefit'].sum()
-        print(total_benefit)
+        total_benefited = df['total_benefit'].sum()
 
         df = df.sort_values(["category", "on_sell_price"], ascending=[True, False])
 
@@ -86,14 +85,18 @@ class StatisticCreator:
             raw_roi = (row['total_benefit'] / row['total_buy_price'] * 100) + 100 if row['total_buy_price'] > 0 else 0
             
             # allocating color for row of benefits percentage
-            if raw_roi >= 100:
+            if raw_roi >= 100 and raw_roi < 200:
                 roi_color = Fore.GREEN
             elif 50 <= raw_roi < 100:
                 roi_color = Fore.YELLOW
+            elif raw_roi > 200 and raw_roi < 300:
+                roi_color = Fore.LIGHTGREEN_EX
+            elif raw_roi > 300 and raw_roi < 400:
+                roi_color = Fore.LIGHTCYAN_EX
             else:
                 roi_color = Fore.RED
 
-            colored_benefit_percentage = f"{roi_color}{round(raw_roi, 1)}{Fore.RESET}%"
+            colored_benefit_percentage = f"{roi_color}{round(raw_roi, 1)}%{Fore.RESET}"
             total_benefit = int(row["total_benefit"])
             colored_total_benefit = f"{f"{Fore.GREEN}+{total_benefit:,}{Fore.RESET} р." if total_benefit > 0 else f"{Fore.RED}-{total_benefit:,}{Fore.RESET} р."}"
 
@@ -116,9 +119,9 @@ class StatisticCreator:
         # using tablefmt="simple" for SEPARATING_LINE supportance
         print(tabulate(table_data, headers=headers, tablefmt="simple", colalign=col_alignment))
 
-        print(f"\n{Fore.RED}Всего затрачено:{Fore.RESET}  {total_spend:,} р.")
+        print(f"\n{Fore.LIGHTRED_EX}Всего затрачено:{Fore.RESET}  {total_spend:,} р.")
         print(f"{Fore.GREEN}Всего заработано:{Fore.RESET} {total_earned:,} р.")
-        print(f"{Fore.YELLOW}Чистая выгода:{Fore.RESET}    {total_benefit:,} р.\n")
+        print(f"{Fore.YELLOW}Чистая выгода:{Fore.RESET}    {total_benefited:,} р.\n")
 
     def by_player_data_buy(self):
         player_data_buy = self.jsonOperations.read_to_json(path=lexicon.PATHS['player_data_buy'])
@@ -174,7 +177,7 @@ class StatisticCreator:
         player_data_loss = self.jsonOperations.read_to_json(path=lexicon.PATHS['player_data_loss'])
         
         if not player_data_loss:
-            print(f"{Fore.RED}Данных о потере при продаже товаров - отсутствуют.{Fore.RESET}")
+            print(f"{Fore.RED}Данные о потере при продаже товаров - отсутствуют.{Fore.RESET}")
             return
         
         rows = []
