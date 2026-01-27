@@ -7,3 +7,6 @@ todo.txt
 plan.txt
 __pycache__
 arsenal_data/__pycache__/
+temp/
+venv/
+exampler_main.py
