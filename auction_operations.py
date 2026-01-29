@@ -418,7 +418,7 @@ class PutOnAuction(AuctionBase):
     
     def check_if_product_has_this_quantity(self, product_name: str, product_quantity: int) -> bool:
         # checks if the products from vault has given product_quantity. return bool
-        if product_name <= 0:
+        if product_quantity <= 0:
             print(f"{Fore.YELLOW}(!){Fore.RESET} Количество не может быть меньше нуля. Пожалуйста повторите попытку.")
             return False
         player_data_buy: dict[str, dict[str, int]] = self.jsonOperations.read_to_json(lexicon.PATHS['player_data_buy'])
