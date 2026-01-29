@@ -46,7 +46,6 @@ def get_df_categories_map() -> dict[str, list[str]]:
             jsonCategory: dict[str, list] = json.load(file)
         for category_name, category_data in jsonCategory.items():
             DF_CATEGORIES_MAP[category_name] = category_data
-            print("Категория:", category_name, "успешно добавлена.")
 
     else:
         return DF_CATEGORIES_MAP
