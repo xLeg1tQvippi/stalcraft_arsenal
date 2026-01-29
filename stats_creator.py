@@ -13,7 +13,7 @@ class StatisticCreator:
     def __init__(self, json_operations, helping_tools):
         self.jsonOperations = json_operations
         self.helping_tools = helping_tools
-        self.category_map: dict[str, list[str]] = lexicon.DF_CATEGORIES_MAP
+        self.category_map: dict[str, list[str]] = lexicon.get_df_categories_map()
         
     def get_category(self, name):
         for category, items in self.category_map.items():
@@ -87,24 +87,24 @@ class StatisticCreator:
             # allocating color for row of benefits percentage
             if raw_roi < 50:
                 roi_color = Fore.YELLOW
-            elif raw_roi >= 100 and raw_roi < 115:
-                roi_color = Fore.WHITE
-            elif raw_roi >= 115 and raw_roi < 130:
-                roi_color = Fore.LIGHTGREEN_EX
-            elif raw_roi >= 130 and raw_roi < 150:
-                roi_color = Fore.LIGHTCYAN_EX
+            elif raw_roi >= 100 and raw_roi < 110:
+                roi_color = lexicon.COLORS['LIGHT1']
+            elif raw_roi >= 110 and raw_roi < 120:
+                roi_color = lexicon.COLORS['LIGHT2']
+            elif raw_roi >= 120 and raw_roi < 150:
+                roi_color = lexicon.COLORS['LIGHT3']
             elif raw_roi >= 150 and raw_roi < 175:
-                roi_color = Fore.LIGHTMAGENTA_EX
-            elif raw_roi >=175 and raw_roi < 250:
-                roi_color = Fore.LIGHTRED_EX
+                roi_color = lexicon.COLORS['LIGHT4']
+            elif raw_roi >= 175 and raw_roi < 250:
+                roi_color = lexicon.COLORS['LIGHT5']
             elif raw_roi > 250:
-                roi_color = lexicon.COLORS['ORANGE']
+                roi_color = lexicon.COLORS['GOLDEN']
             else:
                 roi_color = Fore.LIGHTRED_EX
 
             colored_benefit_percentage = f"{roi_color}{round(raw_roi, 1)}%{Fore.RESET}"
             total_benefit = int(row["total_benefit"])
-            colored_total_benefit = f"{f"{Fore.GREEN}+{total_benefit:,}{Fore.RESET} р." if total_benefit > 0 else f"{Fore.RED}-{total_benefit:,}{Fore.RESET} р."}"
+            colored_total_benefit = f"{f"{Fore.GREEN}+{total_benefit:,}{Fore.RESET} р." if total_benefit > 0 else f"{Fore.RED}{total_benefit:,}{Fore.RESET} р."}"
 
             table_data.append([
                 display_cat,

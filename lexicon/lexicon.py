@@ -1,5 +1,7 @@
 from pathlib import Path
 from colorama import Fore
+from json_operations import JsonOperations
+import json
 
 PATHS: dict[str, str] = {
     "artefacts": fr"{Path(__file__).parent.parent}\auction_items\artefacts.json",
@@ -22,17 +24,39 @@ HOURS: dict[str, int] = {
 }
 
 COLORS = {
-    "ORANGE": '\033[38;2;255;128;0m'
+    "ORANGE": '\033[38;2;255;128;0m',
+    "DEFAULT": '\033[38;2;192;192;192m',
+    "LIGHT1": '\033[38;2;180;210;185m',
+    "LIGHT2": '\033[38;2;140;210;155m',
+    "LIGHT3": '\033[38;2;100;210;125m',
+    "LIGHT4": '\033[38;2;50;215;85m',
+    "LIGHT5": '\033[38;2;0;235;55m',
+    "LIGHT6": '\033[38;2;155;255;0m',
+    "GOLDEN": '\033[38;2;255;240;0m'
 }
 
 COLORED_ARTEFACT_RARITY_LIST: list[str] = [f"{Fore.WHITE}Обычный", f"{Fore.LIGHTGREEN_EX}Необычный", f"{Fore.LIGHTBLUE_EX}Особый", f"{Fore.MAGENTA}Редкий", f"{Fore.LIGHTRED_EX}Исключительный", f"{Fore.LIGHTYELLOW_EX}Легендарный"]
 NON_COLORED_ARTEFACT_RARITY_LIST: list[str] = ['Обычный', "Необычный", 'Особый', "Редкий", 'Исключительный', "Легендарный"]
 
+def get_df_categories_map() -> dict[str, list[str]]:
+    DF_CATEGORIES_MAP = {}
+    paths_to_json_categories: list = [str(f.absolute()) for f in (Path(__file__).parent.parent / "product_categories").iterdir()]
+    for path_to_json in paths_to_json_categories:
+        with open(path_to_json, 'r', encoding='utf-8') as file:
+            jsonCategory: dict[str, list] = json.load(file)
+        for category_name, category_data in jsonCategory.items():
+            DF_CATEGORIES_MAP[category_name] = category_data
+            print("Категория:", category_name, "успешно добавлена.")
+
+    else:
+        return DF_CATEGORIES_MAP
+            
+            
+            
 DF_CATEGORIES_MAP = {
     "Броня": ["Комбинезон", "Бронекостюм", "Экзоброня", "Костюм"],
     "Оружие": ["HK PSG1"],
     "Обвесы": ["Sig Sauer", "Прицел"], 
-    "Бартер": ["Блок данных", "Вещество", "Пси-маячок", "Вещество", "Горьколистник", "Цветущий мох", "Квантовая батарея", "крупный рассольник", "жмых-вжух-плюх", "камень водяного", 'Корень-липучка', "остатки медной проволки", "остатки сигнального процессора", "полхыющий срачник", "модифицированная аномальная батарея", 'Портативный квантовый генератор', 'Нестабильная аномальная батарея'],
     "Артефакты": [
         "Опал",
         "Кристалл Изнанки",

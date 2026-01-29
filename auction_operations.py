@@ -2,6 +2,7 @@ from lexicon import lexicon
 from colorama import Fore
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.validation import Validator, ValidationError
 from typing import Union, Any
 from logger import logger
@@ -9,6 +10,7 @@ from logger import logger
 from typing import TYPE_CHECKING
 import traceback
 
+import time
 import pandas as pd
 import tabulate
 
@@ -147,7 +149,7 @@ class RemoveFromAuction(AuctionBase):
                     for lot_data in lots_list:
                     # here we get only str quantity object, and then, add it to buyout price.
                         buyout_price: int = lot_data['buyout_price']
-                        key: str = f"{quantity}шт. - {buyout_price:,}р #{count}"
+                        key: str = f"#{count}| {quantity}шт. - {buyout_price:,}р"
                         lots_data[key] = (quantity, lot_data)
                         lot_name_list.append(key)
                         count += 1
@@ -173,9 +175,9 @@ class RemoveFromAuction(AuctionBase):
             # here we reiceve something, kind: '1': product_price: 123, etc
             lot_name_list, lots_data = create_choose_lot_list(product_data=product_data)
             if lot_name_list:
-                lot_completer: WordCompleter = WordCompleter(words=lot_name_list, ignore_case=True, match_middle=True)
+                lot_completer: WordCompleter = WordCompleter(words=lot_name_list, ignore_case=True, match_middle=True, sentence=True)
                 print(f"{Fore.YELLOW}0{Fore.RESET} - Выход")
-                choose_lot = prompt("Выберите лот: (TAB - Выпадающий список)\n>>> ", completer=lot_completer)
+                choose_lot = prompt("Выберите лот: (TAB - Выпадающий список)\n>>> ", completer=lot_completer, complete_while_typing=True)
                 if choose_lot == '0':
                     return 0, 0, 0
                 
@@ -230,14 +232,14 @@ class RemoveFromAuction(AuctionBase):
             
             if product_name not in player_data_sell:
                 player_data_sell[product_name] = {
-                    "total_buyout_price": int(lot_data['buyout_price']),
+                    # "total_buyout_price": int(lot_data['buyout_price']),
                     "on_sell_price": int(lot_data['buyout_price'] - lot_data['auction_comission']),
                     "total_quantity": int(quantity_index),
                     "middle_price_buy": lot_data['middle_price_buy'],
                     "total_benefit": lot_data['pre_benefit_calculation']
                 }
             else:
-                player_data_sell[product_name]["total_buyout_price"] += lot_data['buyout_price']
+                # player_data_sell[product_name]["total_buyout_price"] += lot_data['buyout_price']
                 player_data_sell[product_name]['on_sell_price'] += (lot_data['buyout_price'] - lot_data['auction_comission'])
                 player_data_sell[product_name]['total_quantity'] += int(quantity_index)
                 player_data_sell[product_name]['middle_price_buy'] = lot_data['middle_price_buy']
@@ -248,14 +250,15 @@ class RemoveFromAuction(AuctionBase):
         
         else:
             self.jsonOperations.write_to_json(path=lexicon.PATHS['player_data_sell'], data=player_data_sell)
-    
+            print(f"{Fore.GREEN}(>){Fore.RESET} Данные успешно сохранены в статистику продаж.")
+            
     def choose_product_from_auction(self) -> str | int:
         auction_items: dict[str, dict[str, Any]] = self.jsonOperations.read_to_json(path=lexicon.PATHS['player_data_auction']) 
         auction_completer: WordCompleter = self.completerCreator.createCompleter(by='player_data_auction')
         while True:
             print(f"{Fore.YELLOW}0{Fore.RESET} - Выход")
             product_name: str = prompt(f"Выберите товар:\n>>> ", completer=auction_completer)
-            if product_name == '0':
+            if product_name.strip() == '0':
                 return 0
             product_in_auction: bool = self.check_if_product_in_auction(product_name=product_name, auction_items=auction_items)      
             if product_in_auction:
@@ -292,27 +295,39 @@ class RemoveFromAuction(AuctionBase):
         product_name: str | int = self.choose_product_from_auction()
             # so here we making a loop (in another function) for user to choose product
         if product_name == 0:
-            return
-        
-        while True:
-            auction_items: dict[str, dict[str, Any]] = self.completerCreator.get_all_items(by='player_data_auction')
-            if auction_items and product_name in auction_items:
-                product_name, quantity_index, lot_data = self.choose_lot(product_name=product_name, auction_items=auction_items)
-                if product_name == 0 or quantity_index == 0 or lot_data == 0:
-                    return 0
-                
-                removeStatus: bool = self.remove_product_from_auction(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
-                if removeStatus:
-                    if product_purchased:
-                        self.add_product_data_to_player_data_sell(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
-                    elif product_not_purchased:
-                        self.return_items_to_vault(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
-                        self.add_product_data_to_player_data_loss(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
+            return 0
+        try:
+            while True:
+                auction_items: dict[str, dict[str, Any]] = self.completerCreator.get_all_items(by='player_data_auction')
+                if auction_items and product_name in auction_items:
+                    try:
+                        product_name, quantity_index, lot_data = self.choose_lot(product_name=product_name, auction_items=auction_items)
+                        if product_name == 0 or quantity_index == 0 or lot_data == 0:
+                            return 0
+                    except Exception as error:
+                        print(f"{Fore.YELLOW}(!){Fore.RESET} Вы допустили ошибку при выборе лота с аукциона. Пожалуйста, повторите попытку.")
+                        continue
+                    
+                    removeStatus: bool = self.remove_product_from_auction(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
+                    if removeStatus:
+                        if product_purchased:
+                            self.add_product_data_to_player_data_sell(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
+                        elif product_not_purchased:
+                            self.return_items_to_vault(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
+                            self.add_product_data_to_player_data_loss(product_name=product_name, quantity_index=quantity_index, lot_data=lot_data)
+                    else:
+                        logger.error(f"removeStatus: {removeStatus} error unknown, contact developer.")
                 else:
-                    logger.error(f"removeStatus: {removeStatus} error unknown, contact developer.")
-            else:
-                print(f"{Fore.RED}(!){Fore.RESET} Больше товаров на аукционе нет.")
-                return 0
+                    print(f"{Fore.RED}(!){Fore.RESET} Больше товаров на аукционе нет.")
+                    return 0
+        except Exception as error:
+            logger.error(error)
+            print(f"{Fore.YELLOW}(!){Fore.RESET} Произошла ошибка во время выбора лота. Возвращаем обратно...")
+            return 0
+
+        finally:
+            # for player to see what has been written as logs.
+            time.sleep(0.5)
             
     def add_product_data_to_player_data_loss(self, product_name: str, quantity_index: str, lot_data: dict[str, dict[str, Any]]):
         try:
@@ -403,6 +418,9 @@ class PutOnAuction(AuctionBase):
     
     def check_if_product_has_this_quantity(self, product_name: str, product_quantity: int) -> bool:
         # checks if the products from vault has given product_quantity. return bool
+        if product_name <= 0:
+            print(f"{Fore.YELLOW}(!){Fore.RESET} Количество не может быть меньше нуля. Пожалуйста повторите попытку.")
+            return False
         player_data_buy: dict[str, dict[str, int]] = self.jsonOperations.read_to_json(lexicon.PATHS['player_data_buy'])
         if player_data_buy[product_name]['total_quantity'] < product_quantity:
             print(f"{Fore.YELLOW}(!){Fore.RESET} Кол-во {product_name} на складе: {player_data_buy[product_name]['total_quantity']}шт.")
@@ -503,6 +521,7 @@ class PutOnAuction(AuctionBase):
                     return
                 # in case if user wants to set price lower than the bid one~Ё.
                 if buyout_price < (bid_price + 1):
+                    print(f"{Fore.YELLOW}(>){Fore.RESET} Цена выкупа не может быть меньше ставки. Повторите попытку.")
                     continue
                 
                 else:
